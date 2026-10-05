@@ -1,0 +1,14 @@
+{
+  "NameError": "user_name = 'Alice'\nprint(f'Hello, {user_name}')",
+  "TypeError": "total = str('10') + str(5)\nprint(total)",
+  "SyntaxError": "if ready:\n    print('go')\nready = True",
+  "LogicError": "queue = ['first', 'second']\nwhile queue:\n    item = queue.pop(0)\n    print(item)",
+  "Security": "import ast\nuser_input = '{\"name\": \"Ada\"}'\nvalue = ast.literal_eval(user_input)\nprint(value)",
+  "AttributeError": "user = {'name': 'Ada'}\nprint(user.get('name'))",
+  "IndexError": "items = ['a', 'b']\nprint(items[0])",
+  "KeyError": "settings = {'theme': 'dark'}\nprint(settings.get('theme', 'light'))",
+  "FileNotFoundError": "from pathlib import Path\npath = Path('data/input.txt')\nprint(path.read_text(encoding='utf-8'))",
+  "RuntimeTimeout": "items = [1, 2, 3]\nwhile items:\n    print(items.pop())",
+  "ZeroDivisionError": "total = 10\ncount = 2\nprint(total / count)",
+  "ImportError": "import math\nprint(math.sqrt(16))"
+}

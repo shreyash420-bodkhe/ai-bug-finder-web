@@ -1,0 +1,7 @@
+{
+  "NameError": ["undefined name", "not defined", "read before"],
+  "TypeError": ["unsupported operand", "not subscriptable", "not callable"],
+  "Security": ["eval", "exec", "hardcoded secret", "shell execution"],
+  "LogicError": ["infinite loop", "object identity", "identity comparison", "possible logic error"],
+  "RuntimeTimeout": ["execution exceeded", "smoke-test limit", "timed out"]
+}

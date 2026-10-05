@@ -1,0 +1,27 @@
+{
+  "identity-comparison": {
+    "title": "Replace identity comparison",
+    "description": "Use == or != for value comparison instead of is or is not.",
+    "safe": true
+  },
+  "unsafe-eval": {
+    "title": "Use a safe literal parser",
+    "description": "Replace eval() with ast.literal_eval() when only Python literals are expected.",
+    "safe": true
+  },
+  "infinite-loop": {
+    "title": "Bound a queue-processing loop",
+    "description": "Use while queue: when a loop removes items until the queue is empty.",
+    "safe": true
+  },
+  "missing-colon": {
+    "title": "Add the missing block colon",
+    "description": "Add a colon after def, class, if, for, while, try, and related block headers.",
+    "safe": true
+  },
+  "literal-type-error": {
+    "title": "Convert incompatible literal values",
+    "description": "Convert literal operands to compatible strings before concatenation.",
+    "safe": true
+  }
+}
