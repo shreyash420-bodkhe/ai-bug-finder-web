@@ -17,6 +17,7 @@ def analyze_project_folder(project_dir: str | Path, run_code: bool = False) -> d
     python_files = sorted(path for path in root.rglob("*.py") if path.is_file())
     issue_entries: list[dict[str, Any]] = []
     fixed_files: list[str] = []
+    fixed_code_by_file: dict[str, str] = {}
     summary = {"total": 0, "errors": 0, "warnings": 0}
 
     for file_path in python_files:
@@ -34,12 +35,15 @@ def analyze_project_folder(project_dir: str | Path, run_code: bool = False) -> d
 
         fixed_code = result.get("fixed_code")
         if fixed_code is not None:
+            relative_path = str(file_path.relative_to(root))
             file_path.write_text(fixed_code, encoding="utf-8")
-            fixed_files.append(str(file_path.relative_to(root)))
+            fixed_files.append(relative_path)
+            fixed_code_by_file[relative_path] = fixed_code
 
     return {
         "files_analyzed": len(python_files),
         "fixed_files": fixed_files,
+        "fixed_code_by_file": fixed_code_by_file,
         "summary": summary,
         "issues": issue_entries,
     }

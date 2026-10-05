@@ -408,21 +408,21 @@ with analysis_tab:
             request_ai_review = control_col.checkbox(
                 "Request a full-code AI review",
                 value=False,
-                disabled=offline_mode or not ai_api_key or bool(uploaded_files),
+                disabled=offline_mode or not ai_api_key or len(uploaded_files or []) > 1,
             )
             if offline_mode:
                 control_col.caption("Offline mode is enabled; all analysis stays local.")
-            elif ai_api_key and not uploaded_files:
-                control_col.caption("When enabled, pasted code is sent to your configured AI provider for review.")
+            elif ai_api_key and len(uploaded_files or []) <= 1:
+                control_col.caption("When enabled, pasted code or one uploaded file is sent to your configured AI provider for review.")
             elif not ai_api_key:
                 control_col.caption("For broader AI fixes, configure OPENAI_API_KEY in the environment or Streamlit secrets.")
             else:
-                control_col.caption("Full-code AI review is available for pasted code; uploaded projects use local analysis.")
+                control_col.caption("Full-code AI review supports pasted code or one uploaded file; uploaded projects use local analysis.")
             control_col.caption("Runtime checks are disabled by default and skipped for security findings.")
             analyze = action_col.form_submit_button("Analyze code", type="primary", width="stretch", icon=":material/search:")
 
     if analyze:
-        if uploaded_files:
+        if uploaded_files and len(uploaded_files) > 1:
             with st.spinner("Analyzing uploaded Python files..."):
                 with tempfile.TemporaryDirectory(prefix="bugfinder-project-") as temp_dir:
                     extraction_dir = Path(temp_dir)
@@ -450,6 +450,7 @@ with analysis_tab:
                         "issues": project_result["issues"],
                         "summary": project_result["summary"],
                         "fixed_code": None,
+                        "fixed_code_by_file": project_result["fixed_code_by_file"],
                     }
                     history_store.add(
                         account_email,
@@ -461,6 +462,7 @@ with analysis_tab:
                         "issues": project_result["issues"],
                         "summary": project_result["summary"],
                         "fixed_code": None,
+                        "fixed_code_by_file": project_result["fixed_code_by_file"],
                         "project_zip": corrected_zip,
                         "project_name": "uploaded_project",
                     }
@@ -474,7 +476,7 @@ with analysis_tab:
                 with st.spinner("Reviewing the full pasted code with AI..."):
                     result = analyze_with_ai(
                         source,
-                        "pasted-code.py",
+                        selected_upload.name if selected_upload else "pasted-code.py",
                         "Review this Python code for bugs. Explain each error, suggest a specific fix, and return complete corrected code when confident.",
                         result,
                         api_key=ai_api_key,
@@ -482,7 +484,12 @@ with analysis_tab:
             st.session_state["analysis_result"] = result
             st.session_state["analysis_source"] = source
             st.session_state["analysis_mode"] = "file"
-            history_store.add(account_email, "pasted-code", source, result)
+            history_store.add(
+                account_email,
+                selected_upload.name if selected_upload else "pasted-code.py",
+                source,
+                result,
+            )
             st.toast("Analysis and suggestions saved to your account history.", icon=":material/check_circle:")
 
     result = st.session_state.get("analysis_result")
@@ -567,6 +574,29 @@ with history_tab:
         metric_cols[2].metric("Warnings", history_summary["warnings"])
         with st.expander("View saved source", icon=":material/code:"):
             st.code(history_source, language="python")
+        if history_record.get("fixed_code"):
+            with st.expander("View saved corrected code", icon=":material/auto_fix:"):
+                st.code(history_record["fixed_code"], language="python")
+                st.download_button(
+                    "Download corrected code",
+                    history_record["fixed_code"],
+                    f"{Path(history_record['filename']).stem}-fixed.py",
+                    "text/x-python",
+                    key=f"history-fixed-code-{history_record['id']}",
+                    icon=":material/download:",
+                )
+        fixed_code_by_file = history_result.get("fixed_code_by_file", {})
+        for index, (filename, fixed_code) in enumerate(fixed_code_by_file.items()):
+            with st.expander(f"View corrected file: {filename}", icon=":material/auto_fix:"):
+                st.code(fixed_code, language="python")
+                st.download_button(
+                    "Download corrected file",
+                    fixed_code,
+                    f"{Path(filename).name}",
+                    "text/x-python",
+                    key=f"history-fixed-file-{history_record['id']}-{index}",
+                    icon=":material/download:",
+                )
         with st.container(horizontal=True, horizontal_alignment="distribute"):
             st.download_button(
                 "JSON report",

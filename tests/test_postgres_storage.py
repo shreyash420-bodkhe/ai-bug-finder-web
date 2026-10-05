@@ -16,6 +16,9 @@ class _PostgresConnection:
         }
 
     def execute(self, query, parameters=()):
+        if "information_schema.columns" in query:
+            cursor = self.connection.execute("PRAGMA table_info(analyses)")
+            return _ColumnRows(cursor.fetchall())
         return self.connection.execute(query.replace("%s", "?"), parameters)
 
     def commit(self):
@@ -23,6 +26,14 @@ class _PostgresConnection:
 
     def close(self):
         self.connection.close()
+
+
+class _ColumnRows:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def fetchall(self):
+        return [{"column_name": row["name"]} for row in self.rows]
 
 
 def test_auth_and_history_use_shared_database_url(tmp_path, monkeypatch):
@@ -48,7 +59,8 @@ def test_auth_and_history_use_shared_database_url(tmp_path, monkeypatch):
         "person@example.com",
         "sample.py",
         "print('hello')",
-        {"summary": {"total": 0}, "issues": []},
+        {"summary": {"total": 0}, "issues": [], "fixed_code": "print('fixed')"},
     )
+    assert record["fixed_code"] == "print('fixed')"
     assert history.list_for_user("person@example.com") == [record]
     assert history.list_all() == [record]

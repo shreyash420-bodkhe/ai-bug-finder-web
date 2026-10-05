@@ -86,7 +86,7 @@ BUGFINDER_ADMIN_PASSWORD = "use-a-long-unique-password"
 
 The app creates its `users` and `analyses` tables automatically. Never commit the connection string or admin password. Analysis history includes submitted source code; restrict database access and tell users before collecting or storing their code.
 
-For broader review of pasted code, set `OPENAI_API_KEY` in the environment or Streamlit secrets and enable **Request a full-code AI review**. Pasted source is sent to the configured AI provider only when you opt in. Without a key or opt-in, the app uses its local analyzers and supported fix patterns. AI-proposed corrections are syntax-checked and shown for review; they are never applied automatically. Accounts and analysis history both use the same SQLite database locally or PostgreSQL database when `DATABASE_URL` is configured.
+For broader review of pasted code or one uploaded Python file, set `OPENAI_API_KEY` in the environment or Streamlit secrets and enable **Request a full-code AI review**. Source is sent to the configured AI provider only when you opt in. Without a key or opt-in, the app uses its local analyzers and supported fix patterns. AI-proposed corrections are syntax-checked, saved with the analysis history, and shown for review; they are never applied automatically. Multi-file uploads use local analysis, save any per-file corrections in history, and provide a corrected project archive. Accounts and analysis history both use the same SQLite database locally or PostgreSQL database when `DATABASE_URL` is configured. Review suggested changes before using them; automated fixes cannot guarantee program intent or correctness.
 
 ```toml
 # .streamlit/secrets.toml (do not commit this file)

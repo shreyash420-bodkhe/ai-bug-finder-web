@@ -27,10 +27,25 @@ class HistoryStore:
                     filename TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     source TEXT NOT NULL,
-                    result_json TEXT NOT NULL
+                    result_json TEXT NOT NULL,
+                    fixed_code TEXT
                 )
                 """
             )
+            if self.database_url:
+                columns = connection.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = current_schema() AND table_name = 'analyses'
+                    """
+                ).fetchall()
+                column_names = {column["column_name"] for column in columns}
+            else:
+                columns = connection.execute("PRAGMA table_info(analyses)").fetchall()
+                column_names = {column["name"] for column in columns}
+            if "fixed_code" not in column_names:
+                connection.execute("ALTER TABLE analyses ADD COLUMN fixed_code TEXT")
 
     def _connect(self) -> Any:
         if self.database_url:
@@ -54,23 +69,17 @@ class HistoryStore:
             connection.close()
 
     @staticmethod
-    def _record(row: sqlite3.Row) -> dict[str, Any]:
-        if isinstance(row, dict):
-            return {
-                "id": row["id"],
-                "user": row["user_name"],
-                "filename": row["filename"],
-                "created_at": row["created_at"],
-                "source": row["source"],
-                "result": json.loads(row["result_json"]),
-            }
+    def _record(row: Any) -> dict[str, Any]:
+        result = json.loads(row["result_json"])
+        fixed_code = row["fixed_code"] or result.get("fixed_code")
         return {
             "id": row["id"],
             "user": row["user_name"],
             "filename": row["filename"],
             "created_at": row["created_at"],
             "source": row["source"],
-            "result": json.loads(row["result_json"]),
+            "result": result,
+            "fixed_code": fixed_code,
         }
 
     def list_for_user(self, user: str) -> list[dict[str, Any]]:
@@ -103,11 +112,12 @@ class HistoryStore:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "source": source,
             "result": result,
+            "fixed_code": result.get("fixed_code"),
         }
         with self._session() as connection:
             placeholder = "%s" if self.database_url else "?"
             connection.execute(
-                f"INSERT INTO analyses (id, user_name, filename, created_at, source, result_json) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})",
+                f"INSERT INTO analyses (id, user_name, filename, created_at, source, result_json, fixed_code) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})",
                 (
                     record["id"],
                     record["user"],
@@ -115,6 +125,7 @@ class HistoryStore:
                     record["created_at"],
                     record["source"],
                     json.dumps(record["result"]),
+                    record["fixed_code"],
                 ),
             )
         return record
