@@ -72,9 +72,21 @@ $env:BUGFINDER_ADMIN_EMAIL = "admin@example.com"
 $env:BUGFINDER_ADMIN_PASSWORD = "choose-a-strong-password"
 ```
 
-For Streamlit Community Cloud, add both values in the app's **Settings → Secrets**. The admin view lists registered emails and analysis history, but never displays user passwords. Use an OIDC identity provider for production deployments.
+For Streamlit Community Cloud, add both values in the app's **Settings → Secrets**. The login screen provides a separate **Admin login** tab. The admin view lists registered emails and analysis history, but never displays user passwords. Use an OIDC identity provider for production deployments.
 
-For broader review of pasted code, set `OPENAI_API_KEY` in the environment or Streamlit secrets and enable **Request a full-code AI review**. Pasted source is sent to the configured AI provider only when you opt in. Without a key or opt-in, the app uses its local analyzers and supported fix patterns. AI-proposed corrections are syntax-checked and shown for review; they are never applied automatically. Analysis history is stored in SQLite locally and can be moved to PostgreSQL with `DATABASE_URL`.
+### Persistent PostgreSQL storage
+
+By default, local development uses SQLite files. Hosted instances should use a managed PostgreSQL database for persistent account and analysis history. Provision a PostgreSQL database (for example, on Neon or Supabase) and add its private connection string to Streamlit Community Cloud under **Manage app → Settings → Secrets**:
+
+```toml
+DATABASE_URL = "postgresql://user:password@host:5432/database?sslmode=require"
+BUGFINDER_ADMIN_EMAIL = "admin@example.com"
+BUGFINDER_ADMIN_PASSWORD = "use-a-long-unique-password"
+```
+
+The app creates its `users` and `analyses` tables automatically. Never commit the connection string or admin password. Analysis history includes submitted source code; restrict database access and tell users before collecting or storing their code.
+
+For broader review of pasted code, set `OPENAI_API_KEY` in the environment or Streamlit secrets and enable **Request a full-code AI review**. Pasted source is sent to the configured AI provider only when you opt in. Without a key or opt-in, the app uses its local analyzers and supported fix patterns. AI-proposed corrections are syntax-checked and shown for review; they are never applied automatically. Accounts and analysis history both use the same SQLite database locally or PostgreSQL database when `DATABASE_URL` is configured.
 
 ```toml
 # .streamlit/secrets.toml (do not commit this file)

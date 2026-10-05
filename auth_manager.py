@@ -15,13 +15,22 @@ class AuthStore:
     """Persist registered email accounts without storing plaintext passwords."""
 
     def __init__(self, path: str | Path | None = None) -> None:
+        self.database_url = os.getenv("DATABASE_URL")
         self.path = Path(path or Path(__file__).with_name("database") / "users.db")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.integrity_errors = (sqlite3.IntegrityError,)
+        if self.database_url:
+            try:
+                import psycopg
+            except ImportError as error:
+                raise RuntimeError("DATABASE_URL requires psycopg[binary].") from error
+            self.integrity_errors += (psycopg.IntegrityError,)
+        else:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
         with self._session() as connection:
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS users (
-                    email TEXT PRIMARY KEY COLLATE NOCASE,
+                    email TEXT PRIMARY KEY,
                     password_salt TEXT NOT NULL,
                     password_hash TEXT NOT NULL,
                     created_at TEXT NOT NULL
@@ -31,13 +40,23 @@ class AuthStore:
 
     @contextmanager
     def _session(self):
-        connection = sqlite3.connect(self.path)
-        connection.row_factory = sqlite3.Row
+        if self.database_url:
+            import psycopg
+            from psycopg.rows import dict_row
+
+            connection = psycopg.connect(self.database_url, row_factory=dict_row)
+        else:
+            connection = sqlite3.connect(self.path)
+            connection.row_factory = sqlite3.Row
         try:
             yield connection
             connection.commit()
         finally:
             connection.close()
+
+    @property
+    def placeholder(self) -> str:
+        return "%s" if self.database_url else "?"
 
     @property
     def admin_email(self) -> str:
@@ -65,7 +84,9 @@ class AuthStore:
         try:
             with self._session() as connection:
                 connection.execute(
-                    "INSERT INTO users (email, password_salt, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO users (email, password_salt, password_hash, created_at) "
+                    f"VALUES ({self.placeholder}, {self.placeholder}, "
+                    f"{self.placeholder}, {self.placeholder})",
                     (
                         cleaned_email,
                         salt.hex(),
@@ -73,7 +94,7 @@ class AuthStore:
                         datetime.now(timezone.utc).isoformat(),
                     ),
                 )
-        except sqlite3.IntegrityError:
+        except self.integrity_errors:
             return "already_registered"
         return "registered"
 
@@ -92,7 +113,7 @@ class AuthStore:
 
         with self._session() as connection:
             user = connection.execute(
-                "SELECT password_salt, password_hash FROM users WHERE email = ?",
+                f"SELECT password_salt, password_hash FROM users WHERE email = {self.placeholder}",
                 (cleaned_email,),
             ).fetchone()
         if user is None:
@@ -116,7 +137,9 @@ class AuthStore:
         salt = secrets.token_bytes(16)
         with self._session() as connection:
             cursor = connection.execute(
-                "UPDATE users SET password_salt = ?, password_hash = ? WHERE email = ?",
+                "UPDATE users SET password_salt = "
+                f"{self.placeholder}, password_hash = {self.placeholder} "
+                f"WHERE email = {self.placeholder}",
                 (salt.hex(), self._password_hash(cleaned_password, salt), cleaned_email),
             )
         return "updated" if cursor.rowcount else "not_found"

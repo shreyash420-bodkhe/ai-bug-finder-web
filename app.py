@@ -20,7 +20,7 @@ try:
 except FileNotFoundError:
     deployment_secrets = {}
 
-for secret_name in ("BUGFINDER_ADMIN_EMAIL", "BUGFINDER_ADMIN_PASSWORD"):
+for secret_name in ("BUGFINDER_ADMIN_EMAIL", "BUGFINDER_ADMIN_PASSWORD", "DATABASE_URL"):
     if not os.getenv(secret_name) and deployment_secrets.get(secret_name):
         os.environ[secret_name] = str(deployment_secrets[secret_name])
 
@@ -155,7 +155,7 @@ if auth_enabled:
             st.markdown('<div class="auth-form-heading">Welcome back</div>', unsafe_allow_html=True)
             st.markdown('<p class="auth-form-note">Sign in or create your account to continue.</p>', unsafe_allow_html=True)
             with st.container(border=True):
-                register_tab, login_tab = st.tabs(["Register", "Login"])
+                register_tab, login_tab, admin_tab = st.tabs(["Register", "Login", "Admin login"])
 
                 with register_tab:
                     with st.form("register_form"):
@@ -189,12 +189,32 @@ if auth_enabled:
 
                     if login_submitted:
                         is_valid, role = auth_store.validate_login(login_email, login_password)
-                        if is_valid:
+                        if is_valid and role == "user":
                             st.session_state["authenticated"] = True
                             st.session_state["role"] = role
                             st.session_state["account_email"] = login_email.strip().lower()
                             st.rerun()
                         st.error("Sign-in failed. If you have not registered yet, register first, then log in.")
+
+                with admin_tab:
+                    st.caption("Administrator credentials must be configured by the app owner.")
+                    with st.form("admin_login_form"):
+                        admin_email = st.text_input("Admin email", key="admin_login_email")
+                        admin_password = st.text_input(
+                            "Admin password", type="password", key="admin_login_password"
+                        )
+                        admin_login_submitted = st.form_submit_button(
+                            "Sign in as administrator", type="primary"
+                        )
+
+                    if admin_login_submitted:
+                        is_valid, role = auth_store.validate_login(admin_email, admin_password)
+                        if is_valid and role == "admin":
+                            st.session_state["authenticated"] = True
+                            st.session_state["role"] = role
+                            st.session_state["account_email"] = admin_email.strip().lower()
+                            st.rerun()
+                        st.error("Administrator sign-in failed. Check the configured credentials.")
         st.stop()
 
     if st.sidebar.button("Log out", icon=":material/logout:"):
